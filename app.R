@@ -23,6 +23,8 @@ states <- tidykids::tidykids %>%
 
 ui <- fluidPage(
     
+    theme = shinytheme("united"),
+    
     titlePanel("State-by-State Spending on Kids Dataset Visualization"),
     
     sidebarLayout(sidebarPanel(
@@ -30,9 +32,6 @@ ui <- fluidPage(
                     "Variable:",
                     choices = variables,
                     selected = variables[1]),
-        p(),
-        tags$a(href = "https://jrosen48.github.io/tidykids/articles/tidykids-codebook.html", "View variable codebook"),
-        p(),
         selectInput("var_type",
                     "Variable Transformation",
                     choices = c("None (USD)" = "raw", "USD Inflation-Adjusted" = "inf_adj",
@@ -48,20 +47,25 @@ ui <- fluidPage(
                            selected = c("Tennessee", "Michigan", "North Carolina"))
     ),
     mainPanel(
-        plotOutput("plot"),
-        hr(),
-        p("The data was made available by and is attributable to Julia Isaacs, Eleanor Lauderback, and Erica Greenberg under the ODCAttributionLicense: https://opendatacommons.org/licenses/by/1-0/. The dataset is available here: https://datacatalog.urban.org/dataset/state-state-spending-kids-dataset"),
-        p("This data is accessed via the tidykids R data package: https://jrosen48.github.io/tidykids/"),
-        p("Source: https://github.com/jrosen48/tidykidsshiny/blob/master/app.R"),
-        hr(),
-        width = 6
-    )
+        tabsetPanel(
+            tabPanel("Output", 
+                     p(),
+                     plotOutput("plot"),
+                     p("Right-click on the above plot to save an iamge of this plot"),
+                     p(),
+                     downloadButton("downloadData", "Download data used to create this plot")
+            ),
+            tabPanel("Codebook", DT::dataTableOutput("dt_table"))
+        ),
+        width = 6)
     )
 )
 
 server <- function(input, output) {
     
-    output$plot <- renderPlot({
+    output$dt_table <- DT::renderDataTable(tidykids_data_dictionary, options = list(pageLength = 35))
+    
+    prep_dataset <- reactive({
         
         d <- tidykids[tidykids$variable == input$var, ]
         
@@ -69,13 +73,20 @@ server <- function(input, output) {
         
         d <- rename(d, var = input$var_type)
         
+    })
+    
+    output$plot <- renderPlot({
+        
+        d <- prep_dataset()
+        
         p <- d %>% 
             ggplot(aes(x = year,  y = var, color = state, group = state)) +
             geom_point() +
             geom_line() +
             xlab(NULL) +
-            ylab("$1000s") +
+            ylab("$1,000s") +
             ggtitle(input$var) +
+            hrbrthemes::theme_ipsum() +
             theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
             scale_y_continuous(label = scales::comma) +
             theme(text = element_text(size = 15))
@@ -92,7 +103,21 @@ server <- function(input, output) {
             p
         }
         
+        if (input$var_type == "inf_adj_perchild") {
+            p + ylab("$1,000s per child")
+        }
+        
     })
+    
+    output$downloadData <- downloadHandler(
+        filename = function() {
+            paste(input$var, ".csv", sep = "")
+        },
+        content = function(file) {
+            d <- prep_dataset()
+            write_csv(d, path = file)
+        }
+    )
 }
 
 shinyApp(ui = ui, server = server)
