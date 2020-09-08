@@ -1,0 +1,12 @@
+name: shinytidykids
+title: shinytidykids
+username:
+account: faast
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 2766915
+bundleId: 3604092
+url: https://faast.shinyapps.io/shinytidykids/
+when: 1599522962.54157
+asMultiple: FALSE
+asStatic: FALSE
